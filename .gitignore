@@ -33,3 +33,5 @@ coverage.xml
 
 # Model artifacts
 final_model.pt
+
+data/
