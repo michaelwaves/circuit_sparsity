@@ -1,5 +1,33 @@
 
-  Parameter Count Breakdown
+   ## Key Files to Know
+
+  | Purpose             | File                                                       |
+  |---------------------|------------------------------------------------------------|
+  | Run inference       | circuit_sparsity/inference/gpt.py - load_model()           |
+  | Collect activations | circuit_sparsity/inference/hook_utils.py - hook_recorder() |
+  | Define tasks        | circuit_sparsity/registries.py - Task and Datapoint        |
+  | Visualize results   | circuit_sparsity/viz.py - Streamlit app                    |
+
+  Control Sweeps
+
+  Sweeps are controlled via model configs (in beeg_config.json):
+
+  - expansion_factor: Width multiplier (1x, 2x, 4x, 16x) - scales d_model and d_mlp
+  - afrac: Activation sparsity (6.2% to 100%) - keeps top-k activations
+  - afrac_loctypes: Where to apply sparsity (attn_in, mlp_out, etc.)
+  - k parameter: Circuit size - how many nodes to retain during pruning
+
+  Data Generation
+
+  The viz_data.pt files (used by the Streamlit app) are generated externally by a circuit
+  discovery script (not in this repo). They contain:
+  - circuit_data: Which neurons matter (after pruning)
+  - samples: Code examples that activate neurons
+  - importances: Importance scores and loss curves
+
+  You can visualize existing data with: streamlit run circuit_sparsity/viz.py
+ 
+ ## Parameter Count Breakdown
 
   The 7.4M is the total non-zero parameters after training. The expansion factors scale up
    the model architecture, but sparsity keeps the actual stored parameters constant:
@@ -38,6 +66,8 @@
   So 7.4M is not the total possible parameters—it's the stored/non-zero parameters after 
   pruning and sparsity. All these models have ~7.4M active weights but very different
   architectures and capacities.
+
+## Viz
 
 > what exactly is the streamlit app in circuit_sparsity/viz.py showing? what kind of data 
 does it show, and where is it stored/pulled from? 
