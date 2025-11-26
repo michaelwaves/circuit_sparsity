@@ -35,3 +35,4 @@ coverage.xml
 final_model.pt
 
 data/
+backups/
