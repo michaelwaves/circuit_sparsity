@@ -67,7 +67,8 @@ class CausalSelfAttention(nn.Module):
             config.d_model, 3 * config.d_head * config.n_head, bias=config.bias
         )
         # output projection
-        self.c_proj = config.Linear(config.d_head * config.n_head, config.d_model, bias=config.bias)
+        self.c_proj = config.Linear(
+            config.d_head * config.n_head, config.d_model, bias=config.bias)
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
@@ -78,15 +79,18 @@ class CausalSelfAttention(nn.Module):
 
         self.config = config
         # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0
-        self.flash = hasattr(torch.nn.functional, "scaled_dot_product_attention") and config.flash
+        self.flash = hasattr(torch.nn.functional,
+                             "scaled_dot_product_attention") and config.flash
 
         if self.flash:
             self.attn_imp = (
-                SDPAWithSink(config.n_head) if config.sink else F.scaled_dot_product_attention
+                SDPAWithSink(
+                    config.n_head) if config.sink else F.scaled_dot_product_attention
             )
 
         if not self.flash:
-            print("WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
+            print(
+                "WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
             # causal mask to ensure that attention is only applied to the left in the input sequence
             self.register_buffer(
                 "bias",
@@ -94,6 +98,7 @@ class CausalSelfAttention(nn.Module):
                     1, 1, config.block_size, config.block_size
                 ),
             )
+
     def forward(self, x):
         B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (d_model)
 
@@ -114,9 +119,12 @@ class CausalSelfAttention(nn.Module):
         q = hook_save("q", q)  # (B, T, n_head * d_head)
         v = hook_save("v", v)  # (B, T, n_head * d_head)
 
-        k = k.view(B, T, self.n_head, self.d_head).transpose(1, 2)  # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, self.d_head).transpose(1, 2)  # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, self.d_head).transpose(1, 2)  # (B, nh, T, hs)
+        k = k.view(B, T, self.n_head, self.d_head).transpose(
+            1, 2)  # (B, nh, T, hs)
+        q = q.view(B, T, self.n_head, self.d_head).transpose(
+            1, 2)  # (B, nh, T, hs)
+        v = v.view(B, T, self.n_head, self.d_head).transpose(
+            1, 2)  # (B, nh, T, hs)
 
         if self.config.debug_nans:
             assert q.isfinite().all(), "nan in query"
@@ -151,7 +159,8 @@ class CausalSelfAttention(nn.Module):
             assert y.isfinite().all(), "nan in attention output"
 
         y = (
-            y.transpose(1, 2).contiguous().view(B, T, self.n_head * self.d_head)
+            y.transpose(1, 2).contiguous().view(
+                B, T, self.n_head * self.d_head)
         )  # re-assemble all head outputs side by side
 
         # y = self.config.maybe_activation_sparsity(y)
@@ -171,12 +180,14 @@ class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.c_fc = config.Linear(config.d_model, config.d_mlp, bias=config.bias)
+        self.c_fc = config.Linear(
+            config.d_model, config.d_mlp, bias=config.bias)
         self.act_fn = {
             "gelu": nn.GELU(),
             "relu": nn.ReLU(),
         }[config.activation_type]
-        self.c_proj = config.Linear(config.d_mlp, config.d_model, bias=config.bias)
+        self.c_proj = config.Linear(
+            config.d_mlp, config.d_model, bias=config.bias)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
@@ -261,11 +272,14 @@ class SDPAWithSink(nn.Module):
 
         # 4) Add learnable sink bias b to column 0 (per head or shared)
         if self.sink_logit.numel() == H:
-            b = self.sink_logit.to(dtype=q.dtype, device=q.device).view(1, H, 1, 1)  # (1,H,1,1)
+            b = self.sink_logit.to(dtype=q.dtype, device=q.device).view(
+                1, H, 1, 1)  # (1,H,1,1)
         else:
-            b = self.sink_logit.to(dtype=q.dtype, device=q.device).view(1, 1, 1, 1)  # (1,1,1,1)
+            b = self.sink_logit.to(dtype=q.dtype, device=q.device).view(
+                1, 1, 1, 1)  # (1,1,1,1)
 
-        sink_bias_mask = torch.zeros((1, 1, 1, Lk + 1), dtype=q.dtype, device=q.device)
+        sink_bias_mask = torch.zeros(
+            (1, 1, 1, Lk + 1), dtype=q.dtype, device=q.device)
         sink_bias_mask[..., 0] = 1.0
         attn_mask = base_mask + sink_bias_mask * b  # (B,H,Lq,Lk+1)
 
@@ -358,7 +372,8 @@ class CausalSelfAttentionCatPosEmb(CausalSelfAttention):
             config.d_model_in, 3 * config.d_head * config.n_head, bias=config.bias
         )
         # output projection
-        self.c_proj = config.Linear(config.d_head * config.n_head, config.d_model, bias=config.bias)
+        self.c_proj = config.Linear(
+            config.d_head * config.n_head, config.d_model, bias=config.bias)
         # regularization
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
@@ -369,10 +384,12 @@ class CausalSelfAttentionCatPosEmb(CausalSelfAttention):
         self.dropout = config.dropout
         self.config = config
         # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0
-        self.flash = hasattr(torch.nn.functional, "scaled_dot_product_attention") and config.flash
+        self.flash = hasattr(torch.nn.functional,
+                             "scaled_dot_product_attention") and config.flash
 
         if not self.flash:
-            print("WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
+            print(
+                "WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
             # causal mask to ensure that attention is only applied to the left in the input sequence
             self.register_buffer(
                 "bias",
@@ -380,6 +397,7 @@ class CausalSelfAttentionCatPosEmb(CausalSelfAttention):
                     1, 1, config.block_size, config.block_size
                 ),
             )
+
     def forward(self, x, pos_emb_to_cat):
         # Broadcast pos emb over batch if provided as shape [1, T, C]
         if pos_emb_to_cat is not None and pos_emb_to_cat.size(0) == 1 and x.size(0) != 1:
@@ -393,12 +411,14 @@ class MLPCatPosEmb(MLP):
         # initialize base MLP, we'll override the projections to match cat shapes
         super().__init__(config)
         self.config = config
-        self.c_fc = config.Linear(config.d_model_in, config.d_mlp, bias=config.bias)
+        self.c_fc = config.Linear(
+            config.d_model_in, config.d_mlp, bias=config.bias)
         self.act_fn = {
             "gelu": nn.GELU(),
             "relu": nn.ReLU(),
         }[config.activation_type]
-        self.c_proj = config.Linear(config.d_mlp, config.d_model, bias=config.bias)
+        self.c_proj = config.Linear(
+            config.d_mlp, config.d_model, bias=config.bias)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x, pos_emb_to_cat):
@@ -446,7 +466,8 @@ class BlockCatPosEmb(Block):
                     ),
                 )
             else:
-                x = x + hook_save("resid_delta", self.attn(self.ln_1(x), self.ln_p1(p)))
+                x = x + hook_save("resid_delta",
+                                  self.attn(self.ln_1(x), self.ln_p1(p)))
 
         if self.config.residual_activation_type == "relu":
             x = torch.relu(x)
@@ -468,7 +489,8 @@ class BlockCatPosEmb(Block):
                     ),
                 )
             else:
-                x = x + hook_save("resid_delta", self.mlp(self.ln_2(x), self.ln_p2(p)))
+                x = x + hook_save("resid_delta",
+                                  self.mlp(self.ln_2(x), self.ln_p2(p)))
 
         if self.config.residual_activation_type == "relu":
             x = torch.relu(x)
@@ -484,7 +506,8 @@ class BlockCatPosEmb(Block):
 @dataclass
 class GPTConfig:
     block_size: int = 1024
-    vocab_size: int = 50304  # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency  # TODO: FLAG FOR ACHY
+    # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency  # TODO: FLAG FOR ACHY
+    vocab_size: int = 50304
     n_layer: int = 12
     n_head: int = 12
     d_head: int | None = None  # defaults to d_model // n_head
@@ -518,6 +541,18 @@ class GPTConfig:
 
     flash: bool = True
     sink: bool = False
+
+    # ADDED PARAMS
+    bigram_table_rank: None = None
+    pfrac: int | None = None
+    afrac_approx:  bool | None = None
+    ignore_dw_grad: bool = False
+    expansion_factor: int | None = None
+    expansion_factor_mlp: int | None = None
+    debug_exact_topk: bool = True
+    sparse_matmul_impl: str | None = None
+    rtopk: bool | None = False
+    n_embd: int | None = None
 
     @property
     def cat_pos_emb(self):
@@ -572,9 +607,11 @@ class GPT(nn.Module):
         self.transformer = nn.ModuleDict(
             dict(
                 wte=nn.Embedding(config.vocab_size, config.d_model),
-                wpe=nn.Embedding(config.block_size, config.d_pos_emb or config.d_model),
+                wpe=nn.Embedding(config.block_size,
+                                 config.d_pos_emb or config.d_model),
                 drop=nn.Dropout(config.dropout),
-                h=nn.ModuleList([(block_cls(config)) for _ in range(config.n_layer)]),
+                h=nn.ModuleList([(block_cls(config))
+                                for _ in range(config.n_layer)]),
                 ln_f=nn.RMSNorm(config.d_model)
                 if config.rms_norm
                 else LayerNorm(config.d_model, bias=config.ln_bias),
@@ -584,19 +621,22 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
 
         self.register_buffer(
-            "final_logits_bias", torch.zeros(config.vocab_size, dtype=torch.float32)
+            "final_logits_bias", torch.zeros(
+                config.vocab_size, dtype=torch.float32)
         )
 
         if self.config.enable_bigram_table:
             if self.config.learnable_bigram_table:
                 # HACK: low rank to fit in mem
                 self.bigram_table = nn.Parameter(
-                    torch.zeros(config.vocab_size, config.vocab_size, dtype=torch.float32)
+                    torch.zeros(config.vocab_size,
+                                config.vocab_size, dtype=torch.float32)
                 )
             else:
                 self.register_buffer(
                     "bigram_table",
-                    torch.zeros(config.vocab_size, config.vocab_size, dtype=torch.float32),
+                    torch.zeros(config.vocab_size,
+                                config.vocab_size, dtype=torch.float32),
                 )
         else:
             self.bigram_table = None
@@ -618,12 +658,14 @@ class GPT(nn.Module):
                 if p.is_sparse:
                     num_nonzero = p._nnz()
                     p._values().data = (
-                        sample_top_k(n=p.numel(), k=num_nonzero, shape=(num_nonzero,))
+                        sample_top_k(n=p.numel(), k=num_nonzero,
+                                     shape=(num_nonzero,))
                         * 0.02
                         / math.sqrt(2 * config.n_layer)
                     )
                 else:
-                    torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
+                    torch.nn.init.normal_(
+                        p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
         # If requested, initialize positional embeddings with fixed sinusoids and freeze
         if config.cat_pos_emb and config.sinusoidal_cat_pos_emb:
@@ -635,7 +677,8 @@ class GPT(nn.Module):
                 D = config.d_pos_emb
                 device = self.transformer.wpe.weight.device
                 dtype = self.transformer.wpe.weight.dtype
-                positions = torch.arange(T, device=device, dtype=dtype).unsqueeze(1)  # [T,1]
+                positions = torch.arange(
+                    T, device=device, dtype=dtype).unsqueeze(1)  # [T,1]
                 d_half = max(1, D // 2)
                 # periods from 4 tokens up to block_size tokens (log-spaced)
                 T_float = float(T)
@@ -650,7 +693,8 @@ class GPT(nn.Module):
                 cosv = torch.cos(angles)
                 enc = torch.cat([sinv, cosv], dim=1)  # [T, 2*d_half]
                 if enc.shape[1] < D:
-                    pad = torch.zeros(T, D - enc.shape[1], device=device, dtype=dtype)
+                    pad = torch.zeros(
+                        T, D - enc.shape[1], device=device, dtype=dtype)
                     enc = torch.cat([enc, pad], dim=1)
                 elif enc.shape[1] > D:
                     enc = enc[:, :D]
@@ -690,7 +734,8 @@ class GPT(nn.Module):
         # pos = torch.arange(0, t, dtype=torch.long, device=device)  # shape (t)
 
         # forward the GPT model itself
-        tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, d_model)
+        # token embeddings of shape (b, t, d_model)
+        tok_emb = self.transformer.wte(idx)
         # pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, d_model)
         pos_emb = self.transformer.wpe.weight[:t].unsqueeze(0)
         if self.config.cat_pos_emb:
@@ -703,7 +748,8 @@ class GPT(nn.Module):
 
         if self.config.enable_bigram_table:
             # add bigram table to the logits bias
-            additional_logits_bias = F.embedding(idx, self.bigram_table, padding_idx=-1)
+            additional_logits_bias = F.embedding(
+                idx, self.bigram_table, padding_idx=-1)
             additional_logits_bias = additional_logits_bias.to(x.dtype)
         else:
             additional_logits_bias = None
@@ -720,7 +766,8 @@ class GPT(nn.Module):
             n=0,
             targets=targets,
             additional_logits_bias=additional_logits_bias,
-            include_resid_mid=include_resid_mid,  # this is hacky we should just switch to using hooks
+            # this is hacky we should just switch to using hooks
+            include_resid_mid=include_resid_mid,
             pos_emb_to_cat=pos_emb_to_cat,
         )
 
@@ -783,10 +830,12 @@ class GPT(nn.Module):
         # but want to use a smaller block size for some smaller, simpler model
         assert block_size <= self.config.block_size
         self.config.block_size = block_size
-        self.transformer.wpe.weight = nn.Parameter(self.transformer.wpe.weight[:block_size])
+        self.transformer.wpe.weight = nn.Parameter(
+            self.transformer.wpe.weight[:block_size])
         for block in self.transformer.h:
             if hasattr(block.attn, "bias"):
-                block.attn.bias = block.attn.bias[:, :, :block_size, :block_size]
+                block.attn.bias = block.attn.bias[:,
+                                                  :, :block_size, :block_size]
 
     @torch.no_grad()
     def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
@@ -798,7 +847,8 @@ class GPT(nn.Module):
         for _ in range(max_new_tokens):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = (
-                idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size :]
+                idx if idx.size(
+                    1) <= self.config.block_size else idx[:, -self.config.block_size:]
             )
             # forward the model to get the logits for the index in the sequence
             logits, _, _ = self(idx_cond)
@@ -911,7 +961,7 @@ def load_model(model_path, flash=False, grad_checkpointing=False, cuda=True):
         beeg_config_json["d_mlp"] = beeg_config_json.pop("n_mlp")
     beeg_config_json["flash"] = flash
     beeg_config_json["grad_checkpointing"] = grad_checkpointing
-
+    print(beeg_config_json)
     if "use_tied_aux_matrix" in beeg_config_json:
         assert not beeg_config_json.pop("use_tied_aux_matrix")
 

@@ -3,7 +3,7 @@ import blobfile as bf
 import pytest
 import torch
 
-MODEL_SUBDIR = "csp_yolo1"
+MODEL_SUBDIR = "csp_yolo2"
 
 
 def test_gpt_forward_pass(monkeypatch):
@@ -26,8 +26,10 @@ def test_gpt_forward_pass(monkeypatch):
 
     batch_size = 2
     seq_len = 4
-    idx = torch.randint(config.vocab_size, (batch_size, seq_len), dtype=torch.long)
-    targets = torch.randint(config.vocab_size, (batch_size, seq_len), dtype=torch.long)
+    idx = torch.randint(config.vocab_size,
+                        (batch_size, seq_len), dtype=torch.long)
+    targets = torch.randint(
+        config.vocab_size, (batch_size, seq_len), dtype=torch.long)
 
     logits, loss, hidden_states = model(idx, targets=targets)
 
@@ -52,7 +54,8 @@ def test_pretrained_gpt_forward_pass(monkeypatch):
     vocab_size = model.config.vocab_size
 
     idx = torch.randint(vocab_size, (batch_size, seq_len), dtype=torch.long)
-    targets = torch.randint(vocab_size, (batch_size, seq_len), dtype=torch.long)
+    targets = torch.randint(
+        vocab_size, (batch_size, seq_len), dtype=torch.long)
 
     with torch.no_grad():
         logits, loss, hidden_states = model(idx, targets=targets)

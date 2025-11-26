@@ -42,3 +42,7 @@ include = ["circuit_sparsity*"]
 
 [tool.setuptools.package-data]
 circuit_sparsity = ["data/*", "data/**/*"]
+
+[tool.pytest.ini_options]
+testpaths=['tests']
+addopts = ["-rfSp","--cache-clear"]
