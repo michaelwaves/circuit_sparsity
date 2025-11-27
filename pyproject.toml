@@ -31,6 +31,7 @@ dependencies = [
   "xxhash",
   "mpi4py",
   "blobfile",
+  "safetensors>=0.7.0",
 ]
 
 [tool.setuptools]
